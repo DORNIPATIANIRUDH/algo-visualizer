@@ -1,9 +1,10 @@
-const CACHE = 'algoviz-v1';
+const CACHE = 'algoviz-v3';
+const ASSETS = ['/algo-visualizer/', '/algo-visualizer/index.html'];
 
 self.addEventListener('install', e => {
   e.waitUntil(
     caches.open(CACHE)
-      .then(c => c.addAll(['/algo-visualizer/', '/algo-visualizer/index.html']))
+      .then(c => c.addAll(ASSETS))
       .then(() => self.skipWaiting())
   );
 });
@@ -18,15 +19,18 @@ self.addEventListener('activate', e => {
   );
 });
 
+// Network-first strategy — always try fresh, fall back to cache
 self.addEventListener('fetch', e => {
   if (e.request.method !== 'GET') return;
   e.respondWith(
-    caches.match(e.request).then(cached => {
-      const fresh = fetch(e.request).then(res => {
-        if (res.ok) caches.open(CACHE).then(c => c.put(e.request, res.clone()));
+    fetch(e.request)
+      .then(res => {
+        if (res.ok) {
+          const clone = res.clone();
+          caches.open(CACHE).then(c => c.put(e.request, clone));
+        }
         return res;
-      });
-      return cached || fresh;
-    })
+      })
+      .catch(() => caches.match(e.request))
   );
 });
